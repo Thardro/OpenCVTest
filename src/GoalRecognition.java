@@ -12,7 +12,7 @@ import org.opencv.imgcodecs.*;
 import org.opencv.imgproc.Imgproc;
 
 public class GoalRecognition {
-	static String imagePath = "litFrame1.png";
+	static String imagePath = "2016-04-08-095456.png";
 	static String outputPath = "output.jpg";
 	static Scalar lowerHSVBound = new Scalar(0, 62, 57, 0);
 	static Scalar upperHSVBound = new Scalar(95, 255, 255, 0);
@@ -139,23 +139,41 @@ public class GoalRecognition {
 			}
 		}
 		
-		//Finding most similar of the contours, lower similarity is better
-		int mostSimilar = -1;
+		//Finding 2 most similar of the contours, lower similarity is better
+		//2 targets found as up to two goals could be in vision
+		int mostSimilarGoals[] = {-1, -1};
 		for(int i = 0; i < similarities.length; i++) {
 			if(similarities[i] != 1000) {
-				if(similarities[i] < ((mostSimilar == -1)? 1000: similarities[mostSimilar])) {
-					mostSimilar = i;
+				if(similarities[i] < ((mostSimilarGoals[1] == -1)? 1000: similarities[mostSimilarGoals[1]])) {
+					if(similarities[i] < ((mostSimilarGoals[0] == -1)? 1000: similarities[mostSimilarGoals[0]])) {
+						mostSimilarGoals[1] = mostSimilarGoals[0];
+						mostSimilarGoals[0] = i;
+					}
+					else {
+						mostSimilarGoals[1] = i;
+					}
 				}
 			}
 		}
 		
+		//Find widest of the goals if 2 were detected
+		int mostSimilar = 0;
+		if(mostSimilarGoals[1] != -1) {
+			Point[][] convexHulls = {calculateConvexHull(contours.get(mostSimilarGoals[0])),
+					calculateConvexHull(contours.get(mostSimilarGoals[1]))};
+			double[] widths = {convexHulls[0][2].y - convexHulls[0][1].y,
+					convexHulls[1][2].y - convexHulls[1][1].y};
+			
+			mostSimilar = (widths[0] > widths[1])? 0 : 1;
+		}
+			
 		MatOfPoint targetContour;
-		if(mostSimilar == -1) {
+		if(mostSimilarGoals[mostSimilar] == -1) {
 			System.out.println("No similar contour found");
 			targetContour = new MatOfPoint();
 		}
 		else {
-			targetContour = contours.get(mostSimilar);
+			targetContour = contours.get(mostSimilarGoals[mostSimilar]);
 		}
 		
 		return targetContour;
@@ -200,7 +218,7 @@ public class GoalRecognition {
 	
 	private static double getCameraDistanceToGoal(double angleOffset, double snoutAngle) {
 		double cameraHeight = Math.sin(snoutAngle) * CAMERA_X_OFFSET + Math.cos(snoutAngle) * CAMERA_Y_OFFSET + SNOUT_HEIGHT;
-		double cameraHorizontalOffset = Math.cos(snoutAngle) * CAMERA_X_OFFSET - Math.sin(snoutAngle) * CAMERA_Y_OFFSET;
+		//double cameraHorizontalOffset = Math.cos(snoutAngle) * CAMERA_X_OFFSET - Math.sin(snoutAngle) * CAMERA_Y_OFFSET;
 		double heightToGoal = GOAL_HEIGHT - cameraHeight;
 		double angleToGoal = snoutAngle + angleOffset;
 		
@@ -226,7 +244,7 @@ public class GoalRecognition {
 		
 		return centerToGoalAngle;
 	}
-	
+	/*
 	private static double approximateRobotRotation(double horizontalAngleOffset, double verticalAngleOffset, double snoutAngle) {
 		double cameraHorizontalOffset = Math.cos(snoutAngle) * CAMERA_X_OFFSET - Math.sin(snoutAngle) * CAMERA_Y_OFFSET + SNOUT_X_OFFSET;
 		double distance = getCameraDistanceToGoal(verticalAngleOffset, snoutAngle);
@@ -235,4 +253,5 @@ public class GoalRecognition {
 		
 		return centerToGoalAngle;
 	}
+	*/
 }
